@@ -6,12 +6,15 @@ const formatoTitolo = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: 
 
 const stato = {
   lunedi: lunediDi(new Date()),
-  dipendenti: [],
+  dipendenti: [], // chi è in servizio nella settimana mostrata
+  scheda: null,   // il dipendente aperto nella scheda, null = nuova assunzione
 };
 
 const $ = (id) => document.getElementById(id);
 const finestra = $("finestra-turno");
 const modulo = $("modulo-turno");
+const finestraDipendente = $("finestra-dipendente");
+const moduloDipendente = $("modulo-dipendente");
 
 // ---------- Date (tutte in ora locale, come i turni) ----------
 
@@ -33,6 +36,14 @@ function isoData(data) {
 }
 
 const ora = (isoDataOra) => isoDataOra.slice(11, 16);
+
+// "2026-11-15" -> "15/11"
+const giornoMese = (iso) => `${Number(iso.slice(8, 10))}/${Number(iso.slice(5, 7))}`;
+
+// Le date ISO (aaaa-mm-gg) si confrontano anche come testo
+const inServizioIl = (dipendente, data) =>
+  (!dipendente.assunzione || dipendente.assunzione <= data) &&
+  (!dipendente.cessazione || dipendente.cessazione >= data);
 
 function fascia(isoDataOra) {
   const h = Number(isoDataOra.slice(11, 13));
@@ -96,16 +107,35 @@ function disegna(settimana) {
     const barra = el("span");
     barra.style.setProperty("--percentuale", `${percentuale}%`);
 
+    // Assunto o licenziato durante questa settimana: lo scrivo sotto il ruolo
+    const date = [];
+    if (dipendente.assunzione && dipendente.assunzione >= isoData(giorni[0])) {
+      date.push(`dal ${giornoMese(dipendente.assunzione)}`);
+    }
+    if (dipendente.cessazione) {
+      date.push(`ultimo giorno ${giornoMese(dipendente.cessazione)}`);
+    }
+
     const riga = el("tr", {},
       el("th", { scope: "row", class: "dipendente" },
-        el("strong", {}, dipendente.nome),
+        el("button", {
+          type: "button",
+          class: "nome",
+          "aria-label": `Scheda di ${dipendente.nome}`,
+          onclick: () => apriScheda(dipendente),
+        }, dipendente.nome),
         el("span", { class: "ruolo" }, dipendente.ruolo),
+        date.length ? el("span", { class: "rapporto" }, date.join(" · ")) : "",
         el("div", { class: ore > dipendente.oreSettimanali ? "ore straordinari" : "ore" },
           `${ore.toLocaleString("it-IT")} / ${dipendente.oreSettimanali} ore`,
           el("div", { class: "barra" }, barra))));
 
     for (const giorno of giorni) {
       const data = isoData(giorno);
+      if (!inServizioIl(dipendente, data)) {
+        riga.append(el("td", { class: "fuori-servizio" }));
+        continue;
+      }
       const cella = el("td", { class: data === oggi ? "oggi" : "" });
       settimana.turni
         .filter((t) => t.dipendenteId === dipendente.id && t.inizio.startsWith(data))
@@ -126,6 +156,10 @@ function disegna(settimana) {
     }
     return riga;
   });
+  if (righe.length === 0) {
+    righe.push(el("tr", {}, el("td", { colspan: "8", class: "vuoto" },
+      "Nessun dipendente in servizio questa settimana. Usa “+ Assumi” per aggiungerne uno.")));
+  }
   $("corpo").replaceChildren(...righe);
 }
 
@@ -135,14 +169,25 @@ async function carica() {
     mostraMessaggio(risposta.corpo?.errori?.[0] ?? "Impossibile caricare i turni.", "errore");
     return;
   }
+  stato.dipendenti = risposta.corpo.dipendenti;
   disegna(risposta.corpo);
 }
 
 // ---------- Azioni ----------
 
 function apriFinestra(dipendenteId, giorno) {
-  modulo.dipendenteId.value = dipendenteId ?? stato.dipendenti[0]?.id;
-  modulo.giorno.value = giorno ?? isoData(new Date());
+  if (stato.dipendenti.length === 0) {
+    mostraMessaggio("In questa settimana non c'è nessuno in servizio: prima assumi qualcuno.", "avviso");
+    return;
+  }
+  // Senza giorno scelto: oggi, se è nella settimana mostrata, altrimenti il suo lunedì
+  const oggi = isoData(new Date());
+  const lunedi = isoData(stato.lunedi);
+  const domenica = isoData(aggiungiGiorni(stato.lunedi, 6));
+  modulo.dipendenteId.replaceChildren(
+    ...stato.dipendenti.map((d) => el("option", { value: d.id }, `${d.nome} (${d.ruolo})`)));
+  modulo.dipendenteId.value = dipendenteId ?? stato.dipendenti[0].id;
+  modulo.giorno.value = giorno ?? (oggi >= lunedi && oggi <= domenica ? oggi : lunedi);
   $("errori").replaceChildren();
   aggiornaNotaNotte();
   finestra.showModal();
@@ -186,6 +231,91 @@ async function elimina(turno) {
   await carica();
 }
 
+// ---------- Squadra: assumere, modificare, licenziare ----------
+
+function apriScheda(dipendente = null) {
+  stato.scheda = dipendente;
+  const nuovo = dipendente === null;
+  const cessato = !nuovo && Boolean(dipendente.cessazione);
+
+  $("titolo-dipendente").textContent = nuovo ? "Assumi" : dipendente.nome;
+  moduloDipendente.nome.value = dipendente?.nome ?? "";
+  moduloDipendente.ruolo.value = dipendente?.ruolo ?? "";
+  moduloDipendente.oreSettimanali.value = dipendente?.oreSettimanali ?? 40;
+
+  // La data di assunzione si sceglie solo assumendo. Un campo nascosto va anche disattivato,
+  // altrimenti il suo "required" blocca il modulo senza che si veda perché.
+  $("campo-assunzione").hidden = !nuovo;
+  moduloDipendente.assunzione.disabled = !nuovo;
+  moduloDipendente.assunzione.value = isoData(new Date());
+
+  $("fine-rapporto").hidden = nuovo || cessato;
+  moduloDipendente.ultimoGiorno.value = isoData(new Date());
+
+  $("errori-dipendente").replaceChildren();
+  finestraDipendente.showModal();
+  moduloDipendente.nome.focus();
+}
+
+function mostraErroriScheda(risposta) {
+  const errori = risposta.corpo?.errori ?? [`Errore ${risposta.status}.`];
+  $("errori-dipendente").replaceChildren(...errori.map((e) => el("li", {}, e)));
+}
+
+async function salvaDipendente(evento) {
+  evento.preventDefault();
+  const dati = {
+    nome: moduloDipendente.nome.value,
+    ruolo: moduloDipendente.ruolo.value,
+    oreSettimanali: Number(moduloDipendente.oreSettimanali.value),
+  };
+  const nuovo = stato.scheda === null;
+  if (nuovo) dati.assunzione = moduloDipendente.assunzione.value;
+
+  const risposta = nuovo
+    ? await api("/dipendenti", { method: "POST", body: JSON.stringify(dati) })
+    : await api(`/dipendenti/${stato.scheda.id}`, { method: "PUT", body: JSON.stringify(dati) });
+  if (!risposta.ok) {
+    mostraErroriScheda(risposta);
+    return;
+  }
+
+  finestraDipendente.close();
+  const salvato = risposta.corpo;
+  mostraMessaggio(nuovo
+    ? `${salvato.nome} è in squadra dal ${giornoMese(salvato.assunzione)}.`
+    : `Scheda di ${salvato.nome} aggiornata.`);
+  if (nuovo) stato.lunedi = lunediDi(new Date(`${salvato.assunzione}T00:00`)); // la sua prima settimana
+  await carica();
+}
+
+async function licenzia() {
+  const dipendente = stato.scheda;
+  const ultimoGiorno = moduloDipendente.ultimoGiorno.value;
+  if (!ultimoGiorno) {
+    mostraErroriScheda({ corpo: { errori: ["Indica l'ultimo giorno di lavoro."] } });
+    return;
+  }
+  if (!confirm(`Chiudere il rapporto con ${dipendente.nome}? I suoi turni dopo il ${giornoMese(ultimoGiorno)} verranno cancellati.`)) {
+    return;
+  }
+
+  const risposta = await api(`/dipendenti/${dipendente.id}/licenziamento`, {
+    method: "POST",
+    body: JSON.stringify({ ultimoGiorno }),
+  });
+  if (!risposta.ok) {
+    mostraErroriScheda(risposta);
+    return;
+  }
+
+  finestraDipendente.close();
+  const cancellati = risposta.corpo.turniCancellati;
+  mostraMessaggio(`${dipendente.nome} lascia la squadra: ultimo giorno ${giornoMese(ultimoGiorno)}. ` +
+    (cancellati === 1 ? "1 turno cancellato." : `${cancellati} turni cancellati.`), "avviso");
+  await carica();
+}
+
 function cambiaSettimana(giorni) {
   stato.lunedi = aggiungiGiorni(stato.lunedi, giorni);
   carica();
@@ -206,14 +336,11 @@ async function avvia() {
   modulo.inizio.addEventListener("input", aggiornaNotaNotte);
   modulo.fine.addEventListener("input", aggiornaNotaNotte);
 
-  const risposta = await api("/dipendenti");
-  if (!risposta.ok) {
-    mostraMessaggio(risposta.corpo?.errori?.[0] ?? "Impossibile caricare la squadra.", "errore");
-    return;
-  }
-  stato.dipendenti = risposta.corpo;
-  modulo.dipendenteId.replaceChildren(
-    ...stato.dipendenti.map((d) => el("option", { value: d.id }, `${d.nome} (${d.ruolo})`)));
+  $("assumi").addEventListener("click", () => apriScheda());
+  $("annulla-dipendente").addEventListener("click", () => finestraDipendente.close());
+  $("licenzia").addEventListener("click", licenzia);
+  moduloDipendente.addEventListener("submit", salvaDipendente);
+
   await carica();
 }
 

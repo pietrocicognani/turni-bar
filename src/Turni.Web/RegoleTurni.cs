@@ -46,6 +46,17 @@ public static class RegoleTurni
             errori.Add($"Un turno dura al massimo {DurataMassima.TotalHours} ore.");
         }
 
+        // Il turno deve iniziare dentro il rapporto di lavoro (quello di notte dell'ultimo giorno va bene)
+        var giorno = DateOnly.FromDateTime(nuovo.Inizio);
+        if (dipendente.Assunzione is { } assunzione && giorno < assunzione)
+        {
+            errori.Add($"{dipendente.Nome} è in squadra dal {RegoleDipendenti.Data(assunzione)}.");
+        }
+        if (dipendente.Cessazione is { } cessazione && giorno > cessazione)
+        {
+            errori.Add($"{dipendente.Nome} non è più in squadra: l'ultimo giorno era il {RegoleDipendenti.Data(cessazione)}.");
+        }
+
         var altri = turniDelDipendente.ToList();
         foreach (var t in altri)
         {

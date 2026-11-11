@@ -16,7 +16,10 @@
       <button type="button" id="successiva" class="icona" aria-label="Settimana successiva">&rsaquo;</button>
       <button type="button" id="oggi" class="secondario">Oggi</button>
     </nav>
-    <button type="button" id="nuovo-turno" class="primario">+ Nuovo turno</button>
+    <div class="comandi">
+      <button type="button" id="assumi" class="secondario">+ Assumi</button>
+      <button type="button" id="nuovo-turno" class="primario">+ Nuovo turno</button>
+    </div>
   </header>
 
   <main>
@@ -36,6 +39,7 @@
         <li>Un turno dura da 2 a 10 ore e può finire dopo mezzanotte.</li>
         <li>Tra la fine di un turno e l'inizio del successivo servono almeno <strong>11 ore</strong> di riposo.</li>
         <li>Massimo <strong>48 ore</strong> a settimana; oltre le ore del contratto compare un avviso di straordinario.</li>
+        <li>I turni si possono assegnare solo tra il giorno di assunzione e l'ultimo giorno di lavoro.</li>
       </ul>
     </section>
   </main>
@@ -63,6 +67,46 @@
         <button type="button" id="annulla" class="secondario">Annulla</button>
         <button type="submit" class="primario">Salva turno</button>
       </div>
+    </form>
+  </dialog>
+
+  <dialog id="finestra-dipendente" aria-labelledby="titolo-dipendente">
+    <form id="modulo-dipendente" method="dialog">
+      <h2 id="titolo-dipendente">Assumi</h2>
+      <label>Nome e cognome
+        <input type="text" name="nome" required minlength="2" maxlength="60" autocomplete="off">
+      </label>
+      <div class="orari">
+        <label>Ruolo
+          <input type="text" name="ruolo" required maxlength="30" list="ruoli" autocomplete="off">
+        </label>
+        <label>Ore a settimana
+          <input type="number" name="oreSettimanali" required min="1" max="40" value="40">
+        </label>
+      </div>
+      <datalist id="ruoli">
+        <option value="Barista"></option>
+        <option value="Sala"></option>
+        <option value="Cucina"></option>
+        <option value="Cassa"></option>
+      </datalist>
+      <label id="campo-assunzione">In squadra dal
+        <input type="date" name="assunzione" required>
+      </label>
+      <ul id="errori-dipendente" class="errori" role="alert"></ul>
+      <div class="azioni">
+        <button type="button" id="annulla-dipendente" class="secondario">Annulla</button>
+        <button type="submit" class="primario">Salva</button>
+      </div>
+
+      <fieldset id="fine-rapporto" class="fine-rapporto">
+        <legend>Fine del rapporto</legend>
+        <label>Ultimo giorno di lavoro
+          <input type="date" name="ultimoGiorno">
+        </label>
+        <p class="nota">I turni dopo l'ultimo giorno vengono cancellati. Le settimane precedenti restano nello storico.</p>
+        <button type="button" id="licenzia" class="pericolo">Licenzia</button>
+      </fieldset>
     </form>
   </dialog>
 </body>

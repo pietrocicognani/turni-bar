@@ -42,6 +42,11 @@
   box-sizing: border-box;
 }
 
+/* Senza questa regola un elemento "hidden" con display: grid resterebbe visibile */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   font-family: system-ui, "Segoe UI", Roboto, sans-serif;
@@ -71,6 +76,18 @@ button {
 button:focus-visible, input:focus-visible, select:focus-visible {
   outline: 3px solid var(--accento);
   outline-offset: 2px;
+}
+
+.comandi {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.pericolo {
+  border-color: var(--errore);
+  color: var(--errore);
+  font-weight: 600;
+  justify-self: start;
 }
 
 .primario {
@@ -179,6 +196,17 @@ main {
   color: var(--accento);
 }
 
+/* Giorni prima dell'assunzione o dopo l'ultimo giorno di lavoro */
+.turni td.fuori-servizio {
+  background: repeating-linear-gradient(-45deg, transparent 0 6px, color-mix(in srgb, var(--bordo) 45%, transparent) 6px 8px);
+}
+
+.turni td.vuoto {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--testo-tenue);
+}
+
 .turni td.oggi {
   background: color-mix(in srgb, var(--accento) 7%, transparent);
 }
@@ -193,8 +221,23 @@ main {
   z-index: 1;
 }
 
-.dipendente strong {
+.dipendente .nome {
   display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-weight: 700;
+  text-align: left;
+}
+
+.dipendente .nome:hover {
+  text-decoration: underline;
+}
+
+.dipendente .rapporto {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--avviso);
 }
 
 .dipendente .ruolo {
@@ -372,4 +415,20 @@ dialog input, dialog select {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+/* Scheda del dipendente: la fine del rapporto è separata dal salvataggio */
+.fine-rapporto {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.4rem 0 0;
+  padding: 0.9rem 0 0;
+  border: 0;
+  border-top: 1px solid var(--bordo);
+}
+
+.fine-rapporto legend {
+  padding: 0 0.4rem 0 0;
+  font-weight: 700;
+  color: var(--errore);
 }

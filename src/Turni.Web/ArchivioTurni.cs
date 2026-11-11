@@ -26,6 +26,14 @@ public class ArchivioTurni
         else
         {
             _dati = new DatiTurni { Dipendenti = SquadraIniziale() };
+        }
+
+        // I file salvati prima delle assunzioni non hanno il contatore: riparto dall'Id più alto
+        int idMassimo = _dati.Dipendenti.Select(d => d.Id).DefaultIfEmpty(0).Max();
+        _dati.ProssimoIdDipendente = Math.Max(_dati.ProssimoIdDipendente, idMassimo + 1);
+
+        if (!File.Exists(percorso))
+        {
             if (turniDiEsempio)
             {
                 CreaTurniDiEsempio(Lunedi(DateOnly.FromDateTime(DateTime.Today)));
@@ -59,18 +67,107 @@ public class ArchivioTurni
                 .Where(t => Lunedi(DateOnly.FromDateTime(t.Inizio)) == lunedi)
                 .OrderBy(t => t.Inizio)
                 .ToList();
-            var ore = _dati.Dipendenti
+            var inServizio = _dati.Dipendenti
+                .Where(d => d.InServizioNellaSettimana(lunedi))
+                .OrderBy(d => d.Nome)
+                .ToList();
+            var ore = inServizio
                 .Select(d => new OreDipendente(d.Id, turni.Where(t => t.DipendenteId == d.Id).Sum(t => t.Ore), d.OreSettimanali))
                 .ToList();
-            return new Settimana(lunedi, turni, ore);
+            return new Settimana(lunedi, turni, ore, inServizio);
         }
     }
+
+    /// <returns>Il nuovo dipendente, oppure null se i dati non sono validi (i motivi sono nell'esito).</returns>
+    public (Dipendente? Dipendente, EsitoVerifica Esito) Assumi(DatiDipendente dati, DateOnly oggi)
+    {
+        lock (_lock)
+        {
+            var esito = RegoleDipendenti.Verifica(dati, InSquadra(oggi));
+            if (!esito.Valido)
+            {
+                return (null, esito);
+            }
+
+            var dipendente = new Dipendente(_dati.ProssimoIdDipendente++, dati.Nome!.Trim(), dati.Ruolo!.Trim(),
+                dati.OreSettimanali, dati.Assunzione ?? oggi);
+            _dati.Dipendenti.Add(dipendente);
+            Salva();
+            return (dipendente, esito);
+        }
+    }
+
+    /// <summary>Cambia nome, ruolo e ore del contratto. Le date del rapporto non si toccano da qui.</summary>
+    /// <returns>Dipendente null ed esito null = non esiste; dipendente null ed esito con errori = dati non validi.</returns>
+    public (Dipendente? Dipendente, EsitoVerifica? Esito) Modifica(int id, DatiDipendente dati, DateOnly oggi)
+    {
+        lock (_lock)
+        {
+            int indice = _dati.Dipendenti.FindIndex(d => d.Id == id);
+            if (indice < 0)
+            {
+                return (null, null);
+            }
+
+            var esito = RegoleDipendenti.Verifica(dati, InSquadra(oggi).Where(d => d.Id != id));
+            if (!esito.Valido)
+            {
+                return (null, esito);
+            }
+
+            var aggiornato = _dati.Dipendenti[indice] with
+            {
+                Nome = dati.Nome!.Trim(),
+                Ruolo = dati.Ruolo!.Trim(),
+                OreSettimanali = dati.OreSettimanali,
+            };
+            _dati.Dipendenti[indice] = aggiornato;
+            Salva();
+            return (aggiornato, esito);
+        }
+    }
+
+    /// <summary>
+    /// Chiude il rapporto di lavoro: il dipendente resta nello storico, i turni dopo l'ultimo giorno vengono cancellati.
+    /// </summary>
+    /// <returns>Dipendente null ed esito null = non esiste; dipendente null ed esito con errori = non si può licenziare.</returns>
+    public (Dipendente? Dipendente, int TurniCancellati, EsitoVerifica? Esito) Licenzia(int id, DateOnly ultimoGiorno)
+    {
+        lock (_lock)
+        {
+            int indice = _dati.Dipendenti.FindIndex(d => d.Id == id);
+            if (indice < 0)
+            {
+                return (null, 0, null);
+            }
+
+            var esito = RegoleDipendenti.VerificaLicenziamento(_dati.Dipendenti[indice], ultimoGiorno);
+            if (!esito.Valido)
+            {
+                return (null, 0, esito);
+            }
+
+            var licenziato = _dati.Dipendenti[indice] with { Cessazione = ultimoGiorno };
+            _dati.Dipendenti[indice] = licenziato;
+            int cancellati = _dati.Turni.RemoveAll(t =>
+                t.DipendenteId == id && DateOnly.FromDateTime(t.Inizio) > ultimoGiorno);
+            Salva();
+            return (licenziato, cancellati, esito);
+        }
+    }
+
+    /// <summary>Chi oggi è in squadra o ci entrerà: serve per non avere due nomi uguali. Da chiamare dentro il lock.</summary>
+    private IEnumerable<Dipendente> InSquadra(DateOnly oggi) =>
+        _dati.Dipendenti.Where(d => d.Cessazione is null || d.Cessazione >= oggi);
 
     /// <returns>Il turno salvato, oppure null se viola una regola (i motivi sono nell'esito).</returns>
     public (Turno? Turno, EsitoVerifica Esito) Aggiungi(NuovoTurno nuovo, Dipendente dipendente)
     {
         lock (_lock)
         {
+            // Rileggo il dipendente qui dentro: nel frattempo potrebbe essere stato licenziato
+            int idDipendente = dipendente.Id;
+            dipendente = _dati.Dipendenti.First(d => d.Id == idDipendente);
             var esito = RegoleTurni.Verifica(nuovo, dipendente, _dati.Turni.Where(t => t.DipendenteId == dipendente.Id));
             if (!esito.Valido)
             {
@@ -146,7 +243,9 @@ public class ArchivioTurni
 
     private class DatiTurni
     {
+        /// <summary>Contatore dei turni (il nome resta questo per leggere i file già salvati).</summary>
         public int ProssimoId { get; set; } = 1;
+        public int ProssimoIdDipendente { get; set; } = 1;
         public List<Dipendente> Dipendenti { get; set; } = [];
         public List<Turno> Turni { get; set; } = [];
     }
