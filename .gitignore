@@ -1,0 +1,9 @@
+# .NET
+bin/
+obj/
+.vs/
+*.user
+TestResults/
+
+# dati creati al primo avvio
+src/Turni.Web/data/

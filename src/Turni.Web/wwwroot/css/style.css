@@ -1,0 +1,375 @@
+/* Colori come variabili: il tema scuro cambia solo questi valori */
+:root {
+  --sfondo: #f6f5f2;
+  --superficie: #ffffff;
+  --testo: #1f2328;
+  --testo-tenue: #5c6470;
+  --bordo: #dcd9d2;
+  --accento: #0f6e74;
+  --accento-testo: #ffffff;
+  --mattina: #fff2c7;
+  --pomeriggio: #d9f0e3;
+  --sera: #dfe3ff;
+  --errore: #b42318;
+  --avviso: #8a5a00;
+  --avviso-sfondo: #fff4d6;
+  --ok-sfondo: #e3f4ea;
+  --raggio: 10px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sfondo: #15181c;
+    --superficie: #1e2227;
+    --testo: #e8eaed;
+    --testo-tenue: #a0a7b1;
+    --bordo: #343a42;
+    --accento: #4fb8bf;
+    --accento-testo: #0b1214;
+    --mattina: #4a3f1a;
+    --pomeriggio: #1f4031;
+    --sera: #2b3160;
+    --errore: #ff8a80;
+    --avviso: #ffd27a;
+    --avviso-sfondo: #3d3214;
+    --ok-sfondo: #1d3a2a;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  background: var(--sfondo);
+  color: var(--testo);
+  line-height: 1.45;
+}
+
+h1, h2 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+button, input, select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  background: var(--superficie);
+  padding: 0.5rem 0.9rem;
+}
+
+button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 3px solid var(--accento);
+  outline-offset: 2px;
+}
+
+.primario {
+  background: var(--accento);
+  border-color: var(--accento);
+  color: var(--accento-testo);
+  font-weight: 600;
+}
+
+.icona {
+  width: 2.4rem;
+  padding: 0.4rem 0;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.solo-lettori {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Testata */
+.testata {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  padding: 1rem clamp(1rem, 3vw, 2rem);
+  background: var(--superficie);
+  border-bottom: 1px solid var(--bordo);
+}
+
+.testata h1 {
+  font-size: 1.35rem;
+}
+
+.settimane {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: auto;
+}
+
+.settimane h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  min-width: 13rem;
+  text-align: center;
+}
+
+main {
+  padding: 1.25rem clamp(1rem, 3vw, 2rem) 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.messaggio {
+  margin: 0 0 1rem;
+  padding: 0.7rem 1rem;
+  border-radius: var(--raggio);
+  background: var(--ok-sfondo);
+}
+
+.messaggio.avviso {
+  background: var(--avviso-sfondo);
+  color: var(--avviso);
+}
+
+.messaggio.errore {
+  color: var(--errore);
+}
+
+/* Tabella: su telefono scorre in orizzontale dentro il suo riquadro, la pagina resta ferma */
+.contenitore-tabella {
+  overflow-x: auto;
+  background: var(--superficie);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+}
+
+.turni {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.turni th, .turni td {
+  border-bottom: 1px solid var(--bordo);
+  padding: 0.6rem 0.45rem;
+  vertical-align: top;
+  text-align: left;
+}
+
+.turni thead th {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--testo-tenue);
+}
+
+.turni thead th.oggi {
+  color: var(--accento);
+}
+
+.turni td.oggi {
+  background: color-mix(in srgb, var(--accento) 7%, transparent);
+}
+
+/* La colonna dei nomi resta visibile mentre la tabella scorre */
+.turni th:first-child {
+  position: sticky;
+  left: 0;
+  width: 11rem;
+  padding-left: 0.9rem;
+  background: var(--superficie);
+  z-index: 1;
+}
+
+.dipendente strong {
+  display: block;
+}
+
+.dipendente .ruolo {
+  font-size: 0.85rem;
+  color: var(--testo-tenue);
+}
+
+.ore {
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--testo-tenue);
+}
+
+.barra {
+  height: 6px;
+  margin-top: 0.2rem;
+  border-radius: 3px;
+  background: var(--bordo);
+  overflow: hidden;
+}
+
+.barra span {
+  display: block;
+  height: 100%;
+  width: var(--percentuale, 0%);
+  background: var(--accento);
+}
+
+.ore.straordinari {
+  color: var(--avviso);
+}
+
+.ore.straordinari .barra span {
+  background: var(--avviso);
+}
+
+.turno {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  margin-bottom: 0.35rem;
+  padding: 0.25rem 0.2rem 0.25rem 0.45rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.turno.mattina { background: var(--mattina); }
+.turno.pomeriggio { background: var(--pomeriggio); }
+.turno.sera { background: var(--sera); }
+
+.turno button {
+  border: 0;
+  background: transparent;
+  padding: 0 0.2rem;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--testo-tenue);
+}
+
+.aggiungi {
+  width: 100%;
+  padding: 0.15rem;
+  border-style: dashed;
+  color: var(--testo-tenue);
+  background: transparent;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+/* Il "+" compare passando sulla cella, ma resta raggiungibile da tastiera e su touch */
+td:hover .aggiungi, .aggiungi:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .aggiungi {
+    opacity: 1;
+  }
+}
+
+/* Telefono: la navigazione va a capo e la colonna dei nomi si stringe */
+@media (max-width: 600px) {
+  .settimane {
+    flex: 1 1 100%;
+    margin-right: 0;
+  }
+
+  .settimane h2 {
+    min-width: 0;
+    flex: 1;
+    font-size: 0.95rem;
+  }
+
+  .turni {
+    min-width: 960px;
+  }
+
+  .turni th:first-child {
+    width: 8.5rem;
+  }
+}
+
+.regole {
+  margin-top: 1.5rem;
+  color: var(--testo-tenue);
+  font-size: 0.9rem;
+}
+
+.regole h2 {
+  font-size: 1rem;
+  color: var(--testo);
+}
+
+/* Finestra del nuovo turno */
+dialog {
+  width: min(26rem, calc(100vw - 2rem));
+  padding: 1.5rem;
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  background: var(--superficie);
+  color: var(--testo);
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+dialog form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+dialog label {
+  display: grid;
+  gap: 0.3rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+dialog input, dialog select {
+  padding: 0.5rem;
+  border: 1px solid var(--bordo);
+  border-radius: 8px;
+  background: var(--sfondo);
+  font-weight: 400;
+}
+
+.orari {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.nota {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--testo-tenue);
+}
+
+.errori {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--errore);
+  font-size: 0.9rem;
+}
+
+.errori:empty {
+  display: none;
+}
+
+.azioni {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
